@@ -179,7 +179,16 @@ public class MoPubFullscreen extends BaseAd implements VastManager.VastManagerLi
         mHandler = new Handler();
         mAdExpiration = () -> {
             MoPubLog.log(EXPIRED, ADAPTER_NAME, "time in seconds");
-            mInteractionListener.onAdFailed(MoPubErrorCode.EXPIRED);
+            /*
+                Patch - protect the onAdFailed callback so we don't throw an 
+                    exception and break everything
+             */
+            if (mInteractionListener != null) {
+                mInteractionListener.onAdFailed(MoPubErrorCode.EXPIRED);
+            }
+            else {
+                MoPubLog.log(CUSTOM, "Expiration hit, mInteractionListener is null");
+            }
             mReady = false;
         };
 
@@ -323,10 +332,17 @@ public class MoPubFullscreen extends BaseAd implements VastManager.VastManagerLi
     @VisibleForTesting
     void markNotReady() {
         mReady = false;
-        if (mAdData == null || !mAdData.isRewarded() || mHandler == null || mAdExpiration == null) {
+        if (mHandler == null || mAdExpiration == null) {
             return;
         }
+        /*
+            Patch be more aggressive with removing this Expiration Callback
+        */
         mHandler.removeCallbacks(mAdExpiration);
+
+        if (mAdData == null || !mAdData.isRewarded()) {
+            return;
+        }
     }
 
     @Deprecated
